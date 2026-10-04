@@ -1,0 +1,9 @@
+# 3.30 — первая версия с цветными кнопками (style) и
+# премиум-эмодзи на кнопках (icon_custom_emoji_id).
+aiogram>=3.30,<4.0
+aiosqlite>=0.18,<0.21
+python-dotenv>=1.0,<2.0
+Pillow>=10.0,<13.0
+fonttools>=4.0,<5.0
+rlottie-python>=1.3.8,<2.0
+svgelements>=1.9,<2.0

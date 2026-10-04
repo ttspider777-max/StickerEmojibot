@@ -1,0 +1,17 @@
+meta:
+  environment: python
+  toolchain:
+    name: pip
+    version: 3.11
+
+build:
+  requirementsPath: requirements.txt
+
+run:
+  scriptName: bot.py
+  # Постоянное хранилище: база, превью и загруженные шрифты/шаблоны
+  # сохраняются между деплоями. Переменная DATA_DIR=/data задаётся в
+  # настройках проекта (см. README).
+  persistenceMount: /data
+  # Порт мини-приложения. В переменных проекта: WEBAPP_PORT=80.
+  containerPort: 80

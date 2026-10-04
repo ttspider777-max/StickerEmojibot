@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0b0b0d">
+<title>Emoji Studio</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Marck+Script&family=Pacifico&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/@fontsource/caveat@5/700.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/@fontsource/pacifico@5/400.css" rel="stylesheet">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<!-- ============ ОБОИ В СТИЛЕ TELEGRAM ============ -->
+<div id="wall" aria-hidden="true">
+  <i class="blob b1"></i><i class="blob b2"></i><i class="blob b3"></i><i class="blob b4"></i>
+  <svg id="doodle" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <pattern id="pat" width="240" height="240" patternUnits="userSpaceOnUse">
+        <g style="color:#fff">
+          <use href="#ic-star"    x="14"  y="12"  width="30" height="30" transform="rotate(-14 29 27)"/>
+          <use href="#ic-heart"   x="92"  y="30"  width="26" height="26" transform="rotate(12 105 43)"/>
+          <use href="#ic-bolt"    x="170" y="8"   width="28" height="28" transform="rotate(18 184 22)"/>
+          <use href="#ic-gem"     x="30"  y="84"  width="30" height="30" transform="rotate(-10 45 99)"/>
+          <use href="#ic-smile"   x="116" y="92"  width="32" height="32" transform="rotate(8 132 108)"/>
+          <use href="#ic-gift"    x="190" y="86"  width="28" height="28" transform="rotate(-16 204 100)"/>
+          <use href="#ic-send"    x="10"  y="160" width="28" height="28" transform="rotate(10 24 174)"/>
+          <use href="#ic-create"  x="86"  y="164" width="30" height="30" transform="rotate(-8 101 179)"/>
+          <use href="#ic-moon"    x="158" y="168" width="28" height="28" transform="rotate(14 172 182)"/>
+          <use href="#ic-note"    x="206" y="188" width="24" height="24" transform="rotate(-12 218 200)"/>
+          <circle cx="66"  cy="62"  r="2.2" fill="currentColor"/>
+          <circle cx="150" cy="66"  r="1.8" fill="currentColor"/>
+          <circle cx="230" cy="58"  r="2.2" fill="currentColor"/>
+          <circle cx="68"  cy="140" r="1.8" fill="currentColor"/>
+          <circle cx="176" cy="140" r="2.2" fill="currentColor"/>
+          <circle cx="50"  cy="226" r="2"   fill="currentColor"/>
+          <circle cx="132" cy="226" r="1.8" fill="currentColor"/>
+        </g>
+      </pattern>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#pat)"/>
+  </svg>
+  <div id="vig"></div>
+</div>
+
+<!-- ============ ПРИЛОЖЕНИЕ ============ -->
+<div id="app">
+  <header id="topbar">
+    <div class="ad" id="adLogo">
+      <svg class="logo"><use href="#logo"/></svg>
+      <div class="ad-txt">
+        <span class="ad-tag">реклама</span>
+        <b class="ad-bot" id="botName">Emoji Studio</b>
+      </div>
+    </div>
+    <div class="chips">
+      <button class="chip" data-action="goto" data-tab="profile" title="Баланс"><svg class="i"><use href="#ic-star"/></svg><b id="chipBalance">0</b></button>
+      <button class="chip" data-action="goto" data-tab="profile" title="Кристаллы"><i class="gem-i"></i><b id="chipCrystals">0</b></button>
+    </div>
+  </header>
+
+  <main id="view" aria-live="polite"></main>
+
+  <nav id="tabbar">
+    <button class="tab" data-action="goto" data-tab="create"><svg class="i"><use href="#ic-create"/></svg><span>Создать</span></button>
+    <button class="tab" data-action="goto" data-tab="shop"><svg class="i"><use href="#ic-shop"/></svg><span>Магазин</span></button>
+    <button class="tab" data-action="goto" data-tab="profile"><svg class="i"><use href="#ic-profile"/></svg><span>Профиль</span></button>
+    <button class="tab" data-action="goto" data-tab="more"><svg class="i"><use href="#ic-more"/></svg><span>Прочее</span></button>
+  </nav>
+</div>
+
+<div id="sheetRoot"></div>
+<div id="introRoot"></div>
+<div id="fx" aria-hidden="true"></div>
+<div id="toast" role="status"></div>
+
+<!-- ============ СПРАЙТ: ЛОГОТИПЫ И ИКОНКИ ============ -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="gLogo" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#9a9aa5"/><stop offset=".55" stop-color="#55555f"/><stop offset="1" stop-color="#2c2c33"/>
+    </linearGradient>
+    <linearGradient id="gCyan" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#b4b4be"/><stop offset="1" stop-color="#50505a"/>
+    </linearGradient>
+    <radialGradient id="gShine" cx=".3" cy=".25" r=".8">
+      <stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- главный логотип: смайл со звёздочкой -->
+  <symbol id="logo" viewBox="0 0 64 64">
+    <circle cx="32" cy="33" r="27" fill="url(#gLogo)"/>
+    <circle cx="32" cy="33" r="27" fill="url(#gShine)"/>
+    <circle cx="32" cy="33" r="26.2" fill="none" stroke="#fff" stroke-opacity=".55" stroke-width="1.4"/>
+    <ellipse cx="23" cy="28" rx="3.3" ry="4.6" fill="#fff"/>
+    <ellipse cx="41" cy="28" rx="3.3" ry="4.6" fill="#fff"/>
+    <path d="M20 38c3.2 7 8.4 10 12 10s8.8-3 12-10" fill="none" stroke="#fff" stroke-width="4.4" stroke-linecap="round"/>
+    <path d="M52 5l2.1 5.4 5.4 2.1-5.4 2.1L52 20l-2.1-5.4-5.4-2.1 5.4-2.1z" fill="#fff"/>
+    <path d="M9 12l1.2 3 3 1.2-3 1.2L9 20.4l-1.2-3-3-1.2 3-1.2z" fill="#fff" fill-opacity=".85"/>
+  </symbol>
+
+  <!-- фирменные значки разделов (цветные плашки) -->
+  <symbol id="lg-create" viewBox="0 0 64 64">
+    <rect x="4" y="4" width="56" height="56" rx="18" fill="url(#gLogo)"/>
+    <rect x="4" y="4" width="56" height="56" rx="18" fill="url(#gShine)"/>
+    <path d="M32 14l4.6 12.4L49 31l-12.4 4.6L32 48l-4.6-12.4L15 31l12.4-4.6z" fill="#fff"/>
+    <path d="M48 40l1.7 4.3L54 46l-4.3 1.7L48 52l-1.7-4.3L42 46l4.3-1.7z" fill="#fff" fill-opacity=".85"/>
+  </symbol>
+  <symbol id="lg-shop" viewBox="0 0 64 64">
+    <rect x="4" y="4" width="56" height="56" rx="18" fill="url(#gCyan)"/>
+    <rect x="4" y="4" width="56" height="56" rx="18" fill="url(#gShine)"/>
+    <path d="M16 24h32l-2.6 22a4 4 0 0 1-4 3.5H22.6a4 4 0 0 1-4-3.5z" fill="#fff"/>
+    <path d="M23 24v-3a9 9 0 0 1 18 0v3" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="lg-profile" viewBox="0 0 64 64">
+    <rect x="4" y="4" width="56" height="56" rx="18" fill="url(#gLogo)"/>
+    <rect x="4" y="4" width="56" height="56" rx="18" fill="url(#gShine)"/>
+    <circle cx="32" cy="24" r="9" fill="#fff"/>
+    <path d="M14 50c1.5-9 9-13 18-13s16.5 4 18 13z" fill="#fff"/>
+  </symbol>
+  <symbol id="lg-more" viewBox="0 0 64 64">
+    <rect x="4" y="4" width="56" height="56" rx="18" fill="url(#gCyan)"/>
+    <rect x="4" y="4" width="56" height="56" rx="18" fill="url(#gShine)"/>
+    <rect x="15" y="15" width="14" height="14" rx="5" fill="#fff"/>
+    <rect x="35" y="15" width="14" height="14" rx="5" fill="#fff" fill-opacity=".8"/>
+    <rect x="15" y="35" width="14" height="14" rx="5" fill="#fff" fill-opacity=".8"/>
+    <rect x="35" y="35" width="14" height="14" rx="5" fill="#fff"/>
+  </symbol>
+  <symbol id="lg-crown" viewBox="0 0 64 64">
+    <rect x="4" y="4" width="56" height="56" rx="18" fill="url(#gLogo)"/>
+    <rect x="4" y="4" width="56" height="56" rx="18" fill="url(#gShine)"/>
+    <path d="M13 24l10 9 9-16 9 16 10-9-4 24H17z" fill="#fff"/>
+  </symbol>
+  <symbol id="lg-gem" viewBox="0 0 64 64">
+    <rect x="4" y="4" width="56" height="56" rx="18" fill="url(#gCyan)"/>
+    <rect x="4" y="4" width="56" height="56" rx="18" fill="url(#gShine)"/>
+    <path d="M20 17h24l9 12-21 22-21-22z" fill="#fff"/>
+    <path d="M11 29h42M26 17l-5 12 11 22 11-22-5-12" fill="none" stroke="#6b6b75" stroke-width="2" stroke-linejoin="round"/>
+  </symbol>
+
+  <!-- линейные иконки (24×24) -->
+  <symbol id="ic-create" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></g></symbol>
+  <symbol id="ic-shop" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h16l-1.2 11a2 2 0 0 1-2 1.8H7.2a2 2 0 0 1-2-1.8z"/><path d="M8.5 8V6.5a3.5 3.5 0 0 1 7 0V8"/></g></symbol>
+  <symbol id="ic-profile" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4.5 20.5c.7-3.6 3.6-5.5 7.5-5.5s6.8 1.9 7.5 5.5"/></g></symbol>
+  <symbol id="ic-more" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="4" y="4" width="6.5" height="6.5" rx="2"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="2"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="2"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="2"/></g></symbol>
+  <symbol id="ic-star" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.8 6.8 19.6l1-5.8L3.5 9.7l5.9-.9z"/></g></symbol>
+  <symbol id="ic-gem" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"><path d="M6 4h12l3.5 5L12 21 2.5 9z"/><path d="M2.5 9h19M9 4L7 9l5 12 5-12-2-5"/></g></symbol>
+  <symbol id="ic-heart" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 20s-8-5-8-11a4.5 4.5 0 0 1 8-2.5A4.5 4.5 0 0 1 20 9c0 6-8 11-8 11z"/></g></symbol>
+  <symbol id="ic-bolt" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M13 2L5 14h6l-1 8 8-12h-6z"/></g></symbol>
+  <symbol id="ic-smile" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M8 14c1 1.8 2.6 2.6 4 2.6s3-.8 4-2.6"/><path d="M9 9.5v.5M15 9.5v.5"/></g></symbol>
+  <symbol id="ic-gift" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M5 12h14v8H5zM12 8v12"/><path d="M12 8c-3 0-4.5-4-2-4.4S12 8 12 8zM12 8c3 0 4.5-4 2-4.4S12 8 12 8z"/></g></symbol>
+  <symbol id="ic-send" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"><path d="M21 3L3 11l7 3 3 7z"/><path d="M10 14L21 3"/></g></symbol>
+  <symbol id="ic-moon" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z"/></g></symbol>
+  <symbol id="ic-note" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"><path d="M9 18V5l11-2v13"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/></g></symbol>
+  <symbol id="ic-text" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"><path d="M3.5 19L9 5l5.5 14M5.5 14h7"/><path d="M16.5 13.5c0-1.3 1-2 2.3-2s2.2.7 2.2 2V19M16.2 17c0-1.2 1-1.7 2.3-1.7H21"/></g></symbol>
+  <symbol id="ic-font" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"><path d="M5 7V5h14v2M12 5v14M9 19h6"/></g></symbol>
+  <symbol id="ic-stack" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 12.5l9 5 9-5M3 16.5l9 5 9-5"/></g></symbol>
+  <symbol id="ic-dice" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="3.5" y="3.5" width="17" height="17" rx="5"/></g><g fill="currentColor"><circle cx="8.5" cy="8.5" r="1.4"/><circle cx="15.5" cy="8.5" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="8.5" cy="15.5" r="1.4"/><circle cx="15.5" cy="15.5" r="1.4"/></g></symbol>
+  <symbol id="ic-cursor" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M5 3l14 7-6 2-2 6z"/></g></symbol>
+  <symbol id="ic-crown" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3 8l4.5 4L12 5l4.5 7L21 8l-2 11H5z"/></g></symbol>
+  <symbol id="ic-users" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.4 3.1-5.2 6.5-5.2s5.9 1.8 6.5 5.2"/><path d="M16 4.7a3.5 3.5 0 0 1 0 6.6M18 15.2c2 .6 3.2 2.2 3.5 4.8"/></g></symbol>
+  <symbol id="ic-box" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"><path d="M3 8l9-5 9 5v8l-9 5-9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></g></symbol>
+  <symbol id="ic-chat" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M4 5h16v11H9l-5 4z"/></g></symbol>
+  <symbol id="ic-search" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.4-4.4"/></g></symbol>
+  <symbol id="ic-plus" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></g></symbol>
+  <symbol id="ic-check" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></g></symbol>
+  <symbol id="ic-chev" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></g></symbol>
+  <symbol id="ic-close" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></g></symbol>
+  <symbol id="ic-play" viewBox="0 0 24 24"><g fill="currentColor"><path d="M7 4.5l13 7.5-13 7.5z"/></g></symbol>
+  <symbol id="ic-wallet" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"><path d="M3 7h15a3 3 0 0 1 3 3v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M3 7l11-3.5V7M16 14h2.5"/></g></symbol>
+  <symbol id="ic-tag" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="8.5" r="1.4"/></g></symbol>
+  <symbol id="ic-copy" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"><rect x="8" y="8" width="12" height="12" rx="3"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></g></symbol>
+  <symbol id="ic-info" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5.5M12 7.6v.01"/></g></symbol>
+  <symbol id="ic-eye" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></g></symbol>
+  <symbol id="ic-trash" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></g></symbol>
+  <symbol id="ic-lock" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"><rect x="5" y="11" width="14" height="9" rx="3"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></g></symbol>
+</svg>
+
+<script src="/static/app.js"></script>
+</body>
+</html>
