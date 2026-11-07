@@ -1,0 +1,64 @@
+{
+  "_": "Скопируй в branding.json и правь. Всё необязательно: чего нет — берётся из кода. После правки: /reload или кнопка «Перечитать» в админке. Ключи, начинающиеся с подчёркивания, — комментарии, бот их игнорирует.",
+
+  "_theme": "Цвет главных кнопок: primary (синий), success (зелёный), danger (красный). Применяется там, где у кнопки указано \"style\": \"theme\". Меняется и кнопкой в админке.",
+  "theme": "primary",
+
+  "_menu": "Текст главного меню. HTML: <b>жирный</b>, <i>курсив</i>, <u>подчёркнутый</u>, <s>зачёркнутый</s>, <code>моноширинный</code>, <a href=\"...\">ссылка</a>, <blockquote>цитата</blockquote>, <blockquote expandable>раскрывающаяся цитата</blockquote>, <tg-emoji emoji-id=\"5368324170671202286\">🔥</tg-emoji> — премиум-эмодзи. Переменные: {name} имя, {bot} юзернейм бота, {templates} шаблонов, {price} цена, {fonts} шрифтов, {support} поддержка, {channel} канал.",
+  "menu": "<tg-emoji emoji-id=\"5368324170671202286\">🔥</tg-emoji> <b>Привет, {name}!</b>\n\n<blockquote>Собираю анимированные эмодзи с твоей надписью. Выбираешь шаблоны — получаешь готовый набор.</blockquote>\n\n📦 Шаблонов: <b>{templates}</b>\n🔤 Шрифтов: <b>{fonts}</b>\n⭐️ Цена: <b>{price}</b> за штуку\n\nЧто делаем?",
+
+  "_menu_media": "Фото, гифка или видео над меню. type: photo | animation | video. file — путь относительно папки бота. Убери блок целиком, чтобы меню было просто текстом.",
+  "menu_media": {
+    "type": "photo",
+    "file": "assets/menu.jpg"
+  },
+
+  "_buttons": "Каждая кнопка: \"text\" — подпись (в ней тоже работают переменные), \"style\" — primary | success | danger | theme, \"icon\" — id премиум-эмодзи перед подписью. Можно писать просто строкой, если нужна только подпись. В САМОЙ подписи HTML и премиум-эмодзи не работают — это ограничение Telegram, для эмодзи есть \"icon\".",
+  "buttons": {
+    "menu.create":  { "text": "✨ Создать эмодзи", "style": "theme", "icon": "5368324170671202286" },
+    "menu.profile": { "text": "👤 Профиль" },
+    "menu.support": { "text": "💬 Поддержка" },
+    "back":         "◀️ В меню",
+    "back.step":    "◀️ Назад",
+
+    "profile.topup": { "text": "💼 Пополнить баланс", "style": "success" },
+    "support.write": { "text": "✍️ Написать в поддержку" },
+    "support.channel": { "text": "📣 Наш канал" },
+
+    "subscribe.join":  { "text": "📣 Подписаться", "style": "theme" },
+    "subscribe.check": { "text": "✅ Я подписался", "style": "success" },
+
+    "pack.main":   { "text": "📦 Основной — {count} шт." },
+    "mode.random": { "text": "🎲 Выбрать случайно", "style": "theme" },
+    "mode.manual": { "text": "✋ Выбрать самому" },
+
+    "font.upload": { "text": "⬆️ Загрузить свой" },
+    "font.reroll": { "text": "🔄 Другие примеры" },
+    "font.custom": { "text": "🅰️ Мой шрифт" },
+    "content.back": "◀️ К шрифтам",
+
+    "qty.item": { "text": "{count} ⭐️{price}" },
+    "qty.back": "◀️ К надписи",
+
+    "selection.all":   { "text": "✅ Вся страница" },
+    "selection.clear": { "text": "🧹 Сбросить" },
+    "selection.done":  { "text": "➡️ Дальше ({count})", "style": "theme" },
+
+    "order.reroll": { "text": "🎲 Перевыбрать шаблоны" },
+    "order.font":   { "text": "🔤 Другой шрифт" },
+    "order.text":   { "text": "✏️ Другая надпись" },
+    "order.kind":   { "text": "{icon} {title} · сменить" },
+    "order.target": { "text": "📦 Куда добавить" },
+    "order.paybalance": { "text": "💼 Списать с баланса ({amount} ⭐️)", "style": "success" },
+    "order.pay":    { "text": "⭐️ Оплатить {amount}", "style": "success" },
+    "order.free":   { "text": "🎁 Собрать бесплатно", "style": "danger" },
+
+    "after.open": { "text": "📦 Открыть набор", "style": "success" },
+    "after.more": { "text": "✨ Собрать ещё", "style": "theme" },
+
+    "topup.item":    { "text": "{amount} ⭐️" },
+    "topup.profile": { "text": "👤 Профиль" },
+    "target.new":    { "text": "➕ Новый набор" },
+    "target.back":   { "text": "◀️ К превью" }
+  }
+}
