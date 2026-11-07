@@ -65,6 +65,8 @@ import admin
 import admin_branding
 import admin_channels
 import admin_promo
+import admin_seasons
+import seasons
 import branding
 import config
 import crypto
@@ -1931,6 +1933,7 @@ async def main() -> None:
 
     _log_environment()
     await db.init()
+    await seasons.init()
     await settings.load()
     await settings.load_channels()
     log.info("Шаблонов загружено: %d, цена: %d ⭐️", len(templates), settings.price())
@@ -1942,10 +1945,14 @@ async def main() -> None:
     dp = Dispatcher(storage=MemoryStorage())
     # Админский роутер идёт первым: его фильтр пропускает только ADMIN_IDS,
     # а всё остальное проваливается дальше в пользовательский.
+    # Роутер сезонов — самый первый: он только считает сообщения и реакции
+    # в подключённых чатах и пропускает событие дальше.
+    dp.include_router(seasons.router)
     dp.include_router(admin.router)
     dp.include_router(admin_branding.router)
     dp.include_router(admin_channels.router)
     dp.include_router(admin_promo.router)
+    dp.include_router(admin_seasons.router)
     dp.include_router(router)
 
     me = await bot.me()
@@ -1957,8 +1964,10 @@ async def main() -> None:
     # оплаченными с прошлого запуска, подхватятся сами.
     asyncio.create_task(_delivery_worker(bot))
     asyncio.create_task(_crypto_worker(bot))
+    asyncio.create_task(seasons.worker(bot))
     await _start_webapp(bot)
-    await dp.start_polling(bot)
+    # message_reaction по умолчанию не приходит — просим его явно.
+    await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
 
 
 async def _start_webapp(bot: Bot) -> None:

@@ -6,13 +6,20 @@
   if (tg) {
     tg.ready();
     tg.expand();
-    try { tg.setHeaderColor('#0b0b0d'); tg.setBackgroundColor('#0b0b0d'); tg.disableVerticalSwipes && tg.disableVerticalSwipes(); } catch (e) {}
+    try { tg.setHeaderColor('#000000'); tg.setBackgroundColor('#000000'); tg.setBottomBarColor && tg.setBottomBarColor('#000000'); tg.disableVerticalSwipes && tg.disableVerticalSwipes(); } catch (e) {}
   }
+  /* новогодний слой (festive.js) — если не загрузился, приложение работает без него */
+  const F = window.Festive || {
+    prefs: {}, store: { get: (k, d) => d, set() {} }, react() {}, gust() {}, hearts() {}, say() {}, haptic() {},
+    nyHtml: () => '', set() {}, toggle() { return false; }, emojis: ['✨', '💎', '⭐', '🎉', '💖'],
+  };
   let INIT = (tg && tg.initData) || '';
   try { INIT = INIT || localStorage.getItem('devInit') || ''; } catch (e) {}
 
   const TABS = ['create', 'shop', 'profile', 'more'];
-  const SECS = { profile: ['me', 'friends', 'packs'], more: ['premium', 'about', 'learn'] };
+  const SECS = { profile: ['me', 'season', 'friends', 'packs'], more: ['premium', 'about', 'learn', 'style'] };
+  const QUICK_FEST = ['2027', 'С НГ!', 'Ёлка', 'Мяу', 'Санта', 'Снежок', 'Дед Мороз'];
+  const BAUBLES = ['red', 'gold', 'green', 'ice', 'silver'];
   const STEPS = [
     { id: 'text', t: 'Надпись', s: 'Что написать внутри эмодзи' },
     { id: 'font', t: 'Шрифт', s: 'Каким почерком' },
@@ -31,7 +38,24 @@
     shopView: { q: '', sort: 'new', filter: 'all', page: 0, search: false },
     sec: { profile: 'me', more: 'premium' },
     packPage: 0,
+    season: null,
+    bauble: F.store.get('es_bauble', 'red'),
   };
+  /* черновик заказа сохраняется между запусками */
+  try {
+    const d = F.store.get('es_draft', null);
+    if (d && typeof d === 'object') {
+      if (typeof d.text === 'string') S.create.text = d.text.slice(0, 40);
+      if (d.font) S.create.font = d.font;
+      if (d.kind) S.create.kind = d.kind;
+      if (d.mode) S.create.mode = d.mode;
+      if (d.count) S.create.count = d.count;
+    }
+  } catch (e) {}
+  const saveDraft = () => { const c = S.create; F.store.set('es_draft', { text: c.text, font: c.font, kind: c.kind, mode: c.mode, count: c.count }); };
+  const favSet = () => new Set(F.store.get('es_fav', []));
+  const toggleFav = (n) => { const s = favSet(); if (s.has(n)) s.delete(n); else s.add(n); F.store.set('es_fav', [...s]); return s.has(n); };
+  const pushHist = (t) => { t = (t || '').trim(); if (!t) return; const h = F.store.get('es_hist', []).filter((x) => x !== t); h.unshift(t); F.store.set('es_hist', h.slice(0, 6)); };
 
   /* ---------- утилиты ---------- */
   const $ = (s, r = document) => r.querySelector(s);
@@ -41,7 +65,21 @@
   const ico = (n, c = '') => `<svg class="i ${c}"><use href="#ic-${n}"/></svg>`;
   const lg = (n) => `<svg><use href="#${n}"/></svg>`;
   const wm = (c = '') => `<svg class="wm ${c}"><use href="#logo"/></svg>`;
-  const haptic = (t = 'light') => { try { tg && tg.HapticFeedback && tg.HapticFeedback.impactOccurred(t); } catch (e) {} };
+  const haptic = (t = 'light') => F.haptic(t);
+
+  /* шрифты шаблонов подгружаются с сервера, чтобы предпросмотр был настоящим */
+  const fontDone = new Set();
+  function ensureFonts() {
+    const fonts = (S.me && S.me.config && S.me.config.fonts) || [];
+    let css = '';
+    fonts.forEach((f) => {
+      if (!f.file || fontDone.has(f.id)) return;
+      fontDone.add(f.id);
+      css += `@font-face{font-family:'ES_${f.id}';src:url('/fonts/${encodeURIComponent(f.file)}');font-display:swap}`;
+    });
+    if (css) { const s = document.createElement('style'); s.textContent = css; document.head.appendChild(s); }
+  }
+  const fam = (id) => `'ES_${id}', var(--disp)`;
 
   /* рукописный заголовок: слова и буквы — для анимации */
   const hand = (text) => String(text).split(' ').map((w, wi) =>
@@ -61,11 +99,15 @@
     el.className = 'show' + (isErr ? ' err' : '');
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => { el.className = ''; }, 2600);
-    if (isErr) { try { tg && tg.HapticFeedback && tg.HapticFeedback.notificationOccurred('error'); } catch (e) {} }
+    if (isErr) {
+      try { F.prefs.haptics !== false && tg && tg.HapticFeedback && tg.HapticFeedback.notificationOccurred('error'); } catch (e) {}
+      F.react('err', 'Ой!');
+    }
   }
 
   function burst() {
-    const fx = $('#fx'), em = ['✨', '💎', '⭐', '🎉', '💖', '🔥', '🌈'];
+    const fx = $('#fx'), em = F.emojis;
+    F.react('ok');
     for (let i = 0; i < 30; i++) {
       const s = document.createElement('span');
       s.className = 'cf';
@@ -123,7 +165,8 @@
     const d = await api('/api/me');
     const prev = S.me;
     S.me = d;
-    if (!S.create.font) S.create.font = d.config.default_font;
+    if (!S.create.font || !d.config.fonts.some((f) => f.id === S.create.font)) S.create.font = d.config.default_font;
+    ensureFonts();
     updateChips(prev);
     return d;
   }
@@ -172,6 +215,8 @@
     S.tab = tab;
     markTabs();
     haptic();
+    F.gust(-dir || 1);
+    F.react('tab');
     render(dir);
   }
 
@@ -184,8 +229,8 @@
   const rr = () => render(0, true);
 
   const loaderHtml = () => `<div class="lock"><div class="loadlogo">${lg('logo')}</div><p class="muted">Загружаю…</p></div>`;
-  const lockHtml = (h, p, extra = '') => `<div class="lock"><div class="elogo">${lg('logo')}</div><h2>${h}</h2><p class="muted">${p}</p>${extra}</div>`;
-  const emptyHtml = (title, text) => `<div class="empty"><div class="elogo">${lg('logo')}</div><b>${title}</b>${text || ''}</div>`;
+  const lockHtml = (h, p, extra = '') => `<div class="lock"><div class="elogo">${lg('cat-sit')}</div><h2>${h}</h2><p class="muted">${p}</p>${extra}</div>`;
+  const emptyHtml = (title, text) => `<div class="empty"><div class="elogo">${lg('cat-sit')}</div><b>${title}</b>${text || ''}</div>`;
 
   function gateHtml() {
     const links = S.me.gate.map((c) => `<button class="btn block" style="margin-top:10px" data-action="openlink" data-url="${esc(c.url)}">${ico('send')} ${esc(c.title)}</button>`).join('');
@@ -222,6 +267,31 @@
     setStep(c.step + 1);
   }
 
+  /* ёлочный шар: живой предпросмотр надписи выбранным шрифтом */
+  function baubleHtml() {
+    const c = S.create, k = cfg(), f = k.fonts.find((x) => x.id === c.font);
+    const dots = BAUBLES.map((b) => `<button class="d-${b} ${b === S.bauble ? 'on' : ''}" data-action="bauble" data-c="${b}" aria-label="Цвет шара"></button>`).join('');
+    return `<section class="card snow">
+      <div class="lab"><span>${ico('smile')}Предпросмотр надписи</span><span class="tiny">${esc(f ? f.label : '')}</span></div>
+      <div class="bauble-wrap"><div class="bauble-hang"><div class="bauble-swing">
+        <div class="bauble c-${S.bauble}" id="bauble">
+          <svg class="bauble-cap" viewBox="0 0 38 24"><path d="M19 9V3.5a3 3 0 1 1 3 3" fill="none" stroke="url(#gGold)" stroke-width="2" stroke-linecap="round"/><rect x="11" y="8" width="16" height="14" rx="3.5" fill="url(#gGold)"/><path d="M12 13h14M12 17h14" stroke="#8a5a10" stroke-width=".8" opacity=".6"/></svg>
+          <div class="bauble-txt" id="baubleTxt"></div></div></div></div>
+        <div class="bauble-dots">${dots}</div>
+        <p class="bauble-hint">Нажми на цвет — шар сменится. Анимацию эмодзи покажет «Превью» перед оплатой.</p></div></section>`;
+  }
+  function fitBauble() {
+    const el = $('#baubleTxt');
+    if (!el) return;
+    const t = S.create.text.trim();
+    el.classList.toggle('empty', !t);
+    el.textContent = t || 'Ваш ник';
+    el.style.fontFamily = fam(S.create.font);
+    let size = t ? 42 : 20;
+    el.style.fontSize = size + 'px';
+    while (t && el.scrollWidth > el.clientWidth + 1 && size > 12) { size -= 2; el.style.fontSize = size + 'px'; }
+  }
+
   function stepBody(id) {
     const c = S.create, m = S.me, k = cfg();
     const limit = orderLimit();
@@ -232,24 +302,37 @@
       if (m.user.username) quick.push('@' + m.user.username);
       if (m.user.name) quick.push(m.user.name);
       const q = quick.map((v) => `<button class="pill" data-action="fill" data-v="${esc(v)}">${esc(v)}</button>`).join('');
+      const hist = F.store.get('es_hist', []).map((v) => `<button class="pill hist" data-action="fill" data-v="${esc(v)}">${esc(v)}</button>`).join('');
+      const fest = QUICK_FEST.filter((v) => v.length <= k.text_max).map((v) => `<button class="pill fest" data-action="fill" data-v="${esc(v)}">${esc(v)}</button>`).join('');
+      const last = F.store.get('es_last', null);
+      const lastCard = last && last.text ? `<section class="card">${wm('tl')}
+          <div class="lab"><span>${ico('clock')}Прошлый заказ</span></div>
+          <div class="row between"><div class="grow"><b class="num" style="font-size:20px">«${esc(last.text)}»</b>
+            <div class="tiny muted">${last.count} шт. · ${esc(((k.fonts.find((f) => f.id === last.font) || {}).label) || '')}</div></div>
+            <button class="btn sm" data-action="repeat">${ico('shuffle')}Повторить</button></div></section>` : '';
       return `<section class="card">${wm()}
           <div class="lab"><span>${ico('text')}Надпись</span><span class="tiny" id="textCount">${c.text.length}/${k.text_max}</span></div>
           <input id="textInput" class="input big" maxlength="${k.text_max}" placeholder="Ваш ник" value="${esc(c.text)}" autocomplete="off">
           <div class="field-meta tiny"><span>Эта надпись появится внутри каждого эмодзи</span></div>
         </section>
-        ${q ? `<section class="card">${wm('tl')}<div class="lab"><span>${ico('create')}Быстро вставить</span></div><div class="wrapx">${q}</div></section>` : ''}
+        ${seasonBanner()}
+        ${baubleHtml()}
+        <section class="card">${wm('tl')}<div class="lab"><span>${ico('create')}Быстро вставить</span></div>
+          <div class="wrapx">${q}${hist}${fest}</div></section>
+        ${lastCard}
+        ${F.nyHtml()}
         <div class="notice">${ico('info')}<span>Короткие надписи читаются лучше: 3–8 символов. Можно писать кириллицей и латиницей.</span></div>`;
     }
 
     if (id === 'font') {
       const fonts = k.fonts.map((f) => `<button class="fcard ${f.id === c.font ? 'on' : ''}" data-action="font" data-id="${f.id}">
-          <div class="aa">Аа</div><div class="nm">${esc(f.label)}</div></button>`).join('');
-      return `<div class="fgrid">${fonts}</div>`;
+          <div class="aa" style="font-family:${fam(f.id)}">${esc(c.text.trim() || 'Аа')}</div><div class="nm">${esc(f.label)}</div></button>`).join('');
+      return `${baubleHtml()}<div class="fgrid">${fonts}</div>`;
     }
 
     if (id === 'kind') {
       const kinds = Object.entries(k.kinds).map(([kid, v], i) => `<button class="kcard ${kid === c.kind ? 'on' : ''}" data-action="kind" data-id="${kid}">
-          <span class="kl">${lg(i === 0 ? 'lg-create' : 'lg-more')}</span>
+          <span class="kl">${lg(i === 0 ? 'lg-create' : 'lg-set')}</span>
           <span class="grow"><b>${esc(v.title)}</b><span class="small muted">${esc(v.note)}</span></span></button>`).join('');
       return `<div class="stack">${kinds}</div>`;
     }
@@ -303,7 +386,10 @@
       <div class="body stg">${stepBody(st.id)}</div>${createDock()}`, dir, quiet);
 
     const inp = $('#textInput', el);
-    if (inp) inp.addEventListener('input', () => { c.text = inp.value; $('#textCount').textContent = c.text.length + '/' + k.text_max; });
+    if (inp) inp.addEventListener('input', () => { c.text = inp.value; $('#textCount').textContent = c.text.length + '/' + k.text_max; fitBauble(); saveDraft(); });
+    fitBauble();
+    saveDraft();
+    if (document.fonts && c.font) document.fonts.load(`40px 'ES_${c.font}'`).then(fitBauble).catch(() => {});
   }
 
   function orderPayload() {
@@ -389,6 +475,8 @@
   let trackToken = 0;
   async function trackOrder(orderId) {
     const token = ++trackToken;
+    pushHist(S.create.text);
+    F.store.set('es_last', { text: S.create.text.trim(), font: S.create.font, kind: S.create.kind, mode: S.create.mode, count: createCount(), sel: [...S.sel] });
     setSheet(`<div class="center"><span class="spinner"></span><h2 style="margin-top:14px">Заказ принят</h2><p class="muted small" style="margin-top:6px">Собираю набор. Ссылка придёт в чат с ботом — это может занять несколько минут.</p></div>
       <button class="btn block" style="margin-top:10px" data-action="closesheet">Свернуть</button>`);
     S.sel.clear();
@@ -437,6 +525,7 @@
     let items = S.shop.slice();
     if (v.filter === 'user') items = items.filter((i) => i.kind === 'user');
     if (v.filter === 'mine') items = items.filter((i) => i.mine);
+    if (v.filter === 'fav') { const fs = favSet(); items = items.filter((i) => fs.has(i.n)); }
     if (v.q.trim()) {
       const q = v.q.trim().toLowerCase().replace('#', '');
       items = items.filter((i) => String(i.n).includes(q) || String(i.title).toLowerCase().includes(q));
@@ -450,6 +539,7 @@
     const label = i.n >= 1000 ? '' : '#' + String(i.n).padStart(3, '0');
     return `<div class="tile ${S.sel.has(i.n) ? 'sel' : ''}" style="--k:${k}" data-action="open" data-n="${i.n}">
       <img src="/api/preview/${i.n}.png" loading="lazy" alt=""><span class="no">${label}</span>
+      ${favSet().has(i.n) ? `<svg class="i fav"><use href="#ic-heartf"/></svg>` : ''}
       ${i.kind === 'user' ? `<span class="own">${i.mine ? 'Мой' : 'Юзер'}</span>` : ''}
       <span class="dl">⬇ ${fmt(i.downloads)}</span><span class="check">${ico('check')}</span></div>`;
   }
@@ -464,8 +554,9 @@
   function drawShop(dir, quiet) {
     const v = S.shopView;
     const sorts = [['new', 'Новые'], ['popular', 'Популярные'], ['old', 'Старые']];
-    const filters = [['all', 'Все', 'shop'], ['user', 'От юзеров', 'users'], ['mine', 'Мои', 'heart']];
+    const filters = [['all', 'Все', 'shop'], ['user', 'Юзеры', 'users'], ['mine', 'Мои', 'box'], ['fav', 'Любимые', 'heart']];
     const right = `<button class="btn icon sm" data-action="togglesearch" aria-label="Поиск">${ico('search')}</button>
+      <button class="btn icon sm" data-action="randtpl" aria-label="Случайный шаблон">${ico('dice')}</button>
       <button class="btn icon sm primary" data-action="addtpl" aria-label="Добавить шаблон">${ico('plus')}</button>`;
     const el = paint(`${head('lg-shop', 'Магазин', `${fmt(S.shop.length)} шаблонов`, `<div class="row" style="gap:6px">${right}</div>`)}
       ${v.search ? `<div class="shopbar"><input id="shopSearch" class="input" placeholder="Номер или название" value="${esc(v.q)}" autocomplete="off"></div>` : ''}
@@ -550,12 +641,17 @@
     return lottieLoader;
   }
 
-  function openTemplate(n) {
+  function openTemplate(n, nav) {
     const item = S.shop.find((i) => i.n === n);
     if (!item) return;
-    const picked = S.sel.has(n);
-    openSheet(`
-      <div class="anim-box" id="animBox"><img src="/api/preview/${n}.png" alt=""></div>
+    const picked = S.sel.has(n), faved = favSet().has(n);
+    const list = filteredShop(), at = list.findIndex((i) => i.n === n);
+    const prev = at > 0 ? list[at - 1].n : null, next = at >= 0 && at < list.length - 1 ? list[at + 1].n : null;
+    (nav ? setSheet : openSheet)(`
+      <div class="anim-box" id="animBox"><div class="anim-in" id="animIn"><img src="/api/preview/${n}.png" alt=""></div>
+        ${prev ? `<button class="tnav l" data-action="tnav" data-n="${prev}" aria-label="Назад">${ico('chev', 'flip')}</button>` : ''}
+        ${next ? `<button class="tnav r" data-action="tnav" data-n="${next}" aria-label="Дальше">${ico('chev')}</button>` : ''}
+        <button class="favbtn ${faved ? 'on' : ''}" data-action="fav" data-n="${n}" aria-label="В избранное">${ico(faved ? 'heartf' : 'heart')}</button></div>
       <div class="center" style="padding:0 0 14px">
         <h2>${esc(item.title)}</h2>
         <p class="muted small">${item.kind === 'user' ? (item.mine ? 'Ваш шаблон' : 'Добавлен пользователем') : 'Встроенный шаблон'} · ⬇ ${fmt(item.downloads)}</p>
@@ -565,10 +661,14 @@
         ${item.mine || (S.me && S.me.is_admin && item.kind === 'user') ? `<button class="btn danger block ghost" data-action="deltpl" data-n="${n}">${ico('trash')}Удалить шаблон</button>` : ''}
       </div>`);
     loadLottie().then(() => {
-      const box = $('#animBox');
+      const box = $('#animIn');
       if (!box || !window.lottie) return;
-      box.innerHTML = '';
-      window.lottie.loadAnimation({ container: box, renderer: 'svg', loop: true, autoplay: true, path: `/api/lottie/${n}.json` });
+      const live = document.createElement('div');
+      live.style.cssText = 'position:absolute;inset:0';
+      box.appendChild(live);
+      const an = window.lottie.loadAnimation({ container: live, renderer: 'svg', loop: true, autoplay: true, path: `/api/lottie/${n}.json` });
+      an.addEventListener('DOMLoaded', () => { const im = box.querySelector('img'); if (im) im.remove(); });
+      an.addEventListener('data_failed', () => live.remove());
     }).catch(() => {});
   }
 
@@ -619,7 +719,7 @@
   /* ======================= ПРОФИЛЬ ======================= */
   function renderProfile(dir, quiet) {
     const m = S.me, k = cfg(), sec = S.sec.profile;
-    const nav = secsNav('profile', [['me', 'Я', 'profile'], ['friends', 'Друзья', 'users'], ['packs', 'Наборы', 'box']], sec);
+    const nav = secsNav('profile', [['me', 'Я', 'profile'], ['season', 'Сезон', 'crown'], ['friends', 'Друзья', 'users'], ['packs', 'Наборы', 'box']], sec);
     let body = '';
     const name = m.user.name || 'Пользователь';
 
@@ -635,10 +735,17 @@
           </div>
           ${m.premium.active ? `<p class="tiny muted" style="margin-top:8px">Премиум действует до ${until}</p>` : ''}
         </section>
-        <section class="card">${wm('tl')}
+        <section class="card snow">${wm('tl')}
           <div class="lab"><span>${ico('wallet')}Баланс</span><span class="tiny">Создано: ${fmt(m.emoji_created)}</span></div>
           <div class="row between"><div class="big">${ico('star')}<span data-count="${m.balance}">0</span></div>
             <button class="btn primary" data-action="topup">Пополнить</button></div>
+        </section>
+        <section class="card">
+          <div class="lab"><span>${ico('heart')}Моя коллекция</span></div>
+          <div class="stat-row">
+            <div class="stat"><span class="muted tiny">Создано эмодзи</span><b>${fmt(m.emoji_created)}</b></div>
+            <div class="stat"><span class="muted tiny">В избранном</span><b>${fmt(favSet().size)}</b></div>
+          </div>
         </section>
         <section class="card">
           <div class="lab"><span>${ico('tag')}Промокод</span></div>
@@ -669,12 +776,127 @@
           <div class="row" style="margin-top:10px"><button class="btn grow" data-action="copy">${ico('copy')}Копировать</button><button class="btn primary grow" data-action="share">${ico('send')}Позвать</button></div>
         </section>
         <section class="card">${wm('tl')}<div class="lab"><span>${ico('crown')}Ступени наград</span></div><div class="tiers">${tiers}</div></section></div>`;
+    } else if (sec === 'season') {
+      body = `<div class="body stg" id="seasonBox">${S.season ? '' : '<div class="center"><span class="spinner"></span></div>'}</div>`;
     } else {
       body = `<div class="body fix"><div class="packs" id="packsBox"><div class="center"><span class="spinner"></span></div></div></div>`;
     }
     paint(`${head('lg-profile', 'Профиль', esc(name))}${nav}${body}`, dir, quiet);
     if (sec === 'packs') loadPacks();
+    if (sec === 'season') showSeason();
   }
+
+  /* ======================= СЕЗОНЫ ======================= */
+  async function loadSeason(force) {
+    if (S.season && !force) return S.season;
+    S.season = await api('/api/season');
+    return S.season;
+  }
+
+  const leftText = (ends) => {
+    const s = Math.max(0, ends - Math.floor(Date.now() / 1000));
+    const d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60);
+    return d > 0 ? `${d} д ${h} ч` : `${h} ч ${m} мин`;
+  };
+  const plural = (n, a, b, c) => { n = Math.abs(n) % 100; const k = n % 10; return n > 10 && n < 20 ? c : k > 1 && k < 5 ? b : k === 1 ? a : c; };
+
+  async function showSeason(force) {
+    const box = $('#seasonBox');
+    try { await loadSeason(force); }
+    catch (e) { if ($('#seasonBox')) $('#seasonBox').innerHTML = `<p class="muted small center">${esc(e.message)}</p>`; return; }
+    if (S.tab !== 'profile' || S.sec.profile !== 'season') return;
+    const b = $('#seasonBox') || box;
+    if (!b) return;
+    b.innerHTML = seasonHtml();
+    runCounts(b, false);
+  }
+
+  function seasonBanner() {
+    const sn = S.season;
+    if (!sn || !sn.active) return '';
+    const a = sn.active, me = sn.me;
+    const sub = me && me.place ? `Ты на ${me.place} месте · ${fmt(me.points)} очк.` : 'Напиши в чате — войди в рейтинг';
+    return `<button class="card sbanner" data-action="seasonopen">
+      <span class="sb-ico">${lg('lg-crown')}</span>
+      <span class="grow"><b>Сезон ${a.num} из ${sn.total} · ещё <span data-ends="${a.ends_at}">${leftText(a.ends_at)}</span></b><span class="tiny muted">${sub}</span></span>${ico('chev')}</button>`;
+  }
+
+  function seasonHtml() {
+    const sn = S.season, a = sn.active, me = sn.me, r = sn.rules, pz = sn.prizes;
+    const st = (n) => (sn.seasons.find((x) => x.num === n) || {}).status || 'planned';
+    const balls = Array.from({ length: sn.total }, (_, i) => i + 1).map((n) => {
+      const s = st(n);
+      return `<div class="sball ${s}"><i>${s === 'finished' ? ico('check') : s === 'planned' ? ico('lock') : n}</i><span>Сезон ${n}</span></div>`;
+    }).join('');
+
+    let hero;
+    if (a) {
+      const pct = Math.min(100, Math.round(((Date.now() / 1000 - a.started_at) / (a.ends_at - a.started_at)) * 100));
+      hero = `<div class="shero"><div><span class="muted tiny">Идёт</span><b class="num">Сезон ${a.num}</b></div>
+          <div class="sleft"><span class="muted tiny">До конца</span><b data-ends="${a.ends_at}">${leftText(a.ends_at)}</b></div></div>
+        <div class="bar"><i data-bar="${pct}"></i></div>
+        <p class="tiny muted" style="margin-top:8px">Участников в рейтинге: ${fmt(sn.participants || 0)} · сезон длится ${sn.days} дней</p>`;
+    } else if (sn.next_num) {
+      hero = `<div class="shero"><div><span class="muted tiny">Скоро</span><b class="num">Сезон ${sn.next_num}</b></div></div>
+        <p class="small muted" style="margin-top:8px">Старт объявим в канале и в боте. Будь активен в чате и канале — очки пойдут сразу.</p>`;
+    } else {
+      hero = `<div class="shero"><div><b class="num">Все ${sn.total} сезонов сыграны</b></div></div><p class="small muted" style="margin-top:8px">Спасибо, что были с нами!</p>`;
+    }
+
+    let mine = '';
+    if (a && me) {
+      const tiles = [['chat', 'Чат', me.msgs], ['heart', 'Реакции', me.reacts], ['bolt', 'Бот', me.actions], ['gift', 'Бонус', me.bonus]]
+        .map(([ic, t, v]) => `<div class="sstat">${ico(ic)}<b>${fmt(v)}</b><span>${t}</span></div>`).join('');
+      const subBtn = me.sub_claimed ? `<div class="notice">${ico('check')}<span>Бонус за подписку получен</span></div>`
+        : me.sub_available ? `<button class="btn green block" data-action="seasonclaim">${ico('gift')}+${r.subscribe} очков за подписку</button>` : '';
+      mine = `<section class="card snow">${wm('tl')}
+        <div class="lab"><span>${ico('profile')}Мой результат</span><span class="tiny">${me.place ? `Место ${me.place}` : 'вне рейтинга'}</span></div>
+        <div class="row between"><div class="big"><span data-count="${me.points}">0</span></div>
+          <div class="tiny muted" style="text-align:right">${me.place ? (me.gap ? `До ${me.place - 1} места:<br><b class="num" style="font-size:22px;color:#fff">${me.gap}</b> очк.` : 'Ты лидер!') : 'Напиши в чате,<br>чтобы попасть в топ'}</div></div>
+        <div class="sstats">${tiles}</div>${subBtn ? `<div style="margin-top:12px">${subBtn}</div>` : ''}</section>`;
+    }
+
+    const medal = (p) => (p <= 3 ? `<i class="medal m${p}">${p}</i>` : `<i class="medal">${p}</i>`);
+    const top = a ? `<section class="card"><div class="lab"><span>${ico('crown')}Топ сезона</span><span class="tiny">10 лучших</span></div>
+      ${sn.top.length ? sn.top.map((t) => `<div class="lb ${t.me ? 'me' : ''}">${medal(t.place)}<span class="grow">${esc(t.name)}${t.me ? ' <em>ты</em>' : ''}</span><b>${fmt(t.points)}</b></div>`).join('')
+        : '<p class="small muted">Пока никто не набрал очков — стань первым!</p>'}</section>` : '';
+
+    const nft = pz.nft || {};
+    const nftLabel = nft.title ? `NFT-подарок «${esc(nft.title)}»` : 'NFT-подарок в Telegram';
+    const prize = `<section class="card premium">${wm()}
+      <div class="lab"><span>${ico('gift')}Призы сезона</span></div>
+      <div class="perk"><i>${ico('check')}</i><span><b>1 место</b> — ${nftLabel} и ${pz.generations} генераций</span></div>
+      ${nft.url ? `<button class="btn sm block nftbtn" data-action="openlink" data-url="${esc(nft.url)}">${ico('gift')}Посмотреть NFT</button>` : ''}
+      <div class="perk"><i>${ico('check')}</i><span><b>${pz.winners > 2 ? `2–${pz.winners} места` : '2 место'}</b> — ${pz.generations} генераций (начисляются кристаллами)</span></div>
+      <p class="tiny muted" style="margin-top:6px">В конце каждого сезона бот пришлёт всем итоги и ваш личный результат.</p></section>`;
+
+    const rules = `<section class="card"><div class="lab"><span>${ico('info')}Как набирать очки</span></div>
+      <div class="rule">${ico('chat')}<span>Сообщение в чате или в комментариях канала</span><b>+${r.message}</b></div>
+      <p class="tiny muted rnote">Не чаще раза в ${r.cooldown} сек, до ${r.message_cap} очков в день. Короткие и флуд не считаются.</p>
+      <div class="rule">${ico('heart')}<span>Реакция на сообщение в чате</span><b>+${r.reaction}</b></div>
+      <p class="tiny muted rnote">До ${r.reaction_cap} в день.</p>
+      <div class="rule">${ico('create')}<span>Заказ эмодзи в боте</span><b>+${r.order_base}…${r.order_max}</b></div>
+      <div class="rule">${ico('users')}<span>Друг запустил бота по вашей ссылке</span><b>+${r.referral}</b></div>
+      <div class="rule">${ico('send')}<span>Подписка на канал (один раз за сезон)</span><b>+${r.subscribe}</b></div></section>`;
+
+    const past = sn.seasons.filter((s) => s.status === 'finished' && s.winners && s.winners.length);
+    const hist = past.length ? `<section class="card"><div class="lab"><span>${ico('clock')}Прошлые сезоны</span></div>
+      ${past.map((s) => `<div class="hseason"><b>Сезон ${s.num}</b>${s.winners.map((w) => `<span>${medal(w.place)}${esc(w.name)} <em>${fmt(w.points)}</em></span>`).join('')}</div>`).join('')}</section>` : '';
+
+    return `<section class="card snow"><div class="lab"><span>${ico('crown')}Сезоны</span><span class="tiny">${sn.total} по ${sn.days} дней</span></div>
+        <div class="sline">${balls}</div>${hero}</section>${mine}${top}${prize}${rules}${hist}`;
+  }
+
+  async function claimSeason() {
+    try {
+      const r = await api('/api/season/claim', { body: {} });
+      toast(`+${r.points} очков за подписку`);
+      haptic('medium'); burst();
+      await loadSeason(true);
+      if (S.tab === 'profile' && S.sec.profile === 'season') showSeason();
+    } catch (e) { toast(e.message, true); }
+  }
+  setInterval(() => { document.querySelectorAll('[data-ends]').forEach((el) => { el.textContent = leftText(Number(el.dataset.ends)); }); }, 30000);
 
   async function loadPacks() {
     const box = $('#packsBox');
@@ -697,7 +919,7 @@
     const slice = S.packs.slice(S.packPage * per, (S.packPage + 1) * per);
     $('#plist').innerHTML = slice.map((p, i) => `
       <button class="list-item" style="--k:${i}" data-action="openlink" data-url="${esc(p.url)}">
-        <span class="ico">${lg(p.kind === 'emoji' ? 'lg-create' : 'lg-more')}</span>
+        <span class="ico">${lg(p.kind === 'emoji' ? 'lg-create' : 'lg-set')}</span>
         <span class="grow"><b>${esc(p.title)}</b><div class="tiny muted">${p.count} шт. · ${p.kind === 'emoji' ? 'эмодзи' : 'стикеры'}</div></span>${ico('chev')}
       </button>`).join('');
     $('#ppager').innerHTML = pages > 1
@@ -763,14 +985,14 @@
   /* ======================= ПРОЧЕЕ ======================= */
   function renderMore(dir, quiet) {
     const m = S.me, k = cfg(), sec = S.sec.more;
-    const nav = secsNav('more', [['premium', 'Premium', 'crown'], ['about', 'О боте', 'info'], ['learn', 'Обучение', 'play']], sec);
+    const nav = secsNav('more', [['premium', 'Premium', 'crown'], ['about', 'О боте', 'info'], ['learn', 'Гайд', 'play'], ['style', 'Стиль', 'sliders']], sec);
     let body = '';
 
     if (sec === 'premium') {
       const active = m.premium.active;
       const until = active ? new Date(m.premium.until * 1000).toLocaleDateString('ru-RU') : '';
       body = `<div class="body stg">
-        <section class="card premium">${wm()}
+        <section class="card premium snow">${wm()}
           <div class="row between"><span class="badge">${ico('crown')}Premium</span>${active ? '<span class="tiny muted">Активен до ' + until + '</span>' : ''}</div>
           <div class="price" style="margin-top:6px"><span>${fmt(k.premium_price)}</span>${ico('star')}</div>
           <p class="muted small" style="margin-bottom:10px">на ${k.premium_days} дней</p>
@@ -796,6 +1018,28 @@
           </div>
           <p class="tiny muted" style="margin-top:10px">Или ${k.crystals_per_emoji} ${GEM} за одно эмодзи — кристаллы дают за приглашённых друзей.</p>
         </section></div>`;
+    } else if (sec === 'style') {
+      const P = F.prefs;
+      const sw = (key, icon, title, sub, color) => `<div class="setrow" data-action="togglepref" data-k="${key}" role="switch" aria-checked="${P[key] ? 'true' : 'false'}" aria-label="${title}" tabindex="0">
+          <span class="ico" style="color:${color}">${ico(icon)}</span><div class="grow"><b>${title}</b><span class="tiny">${sub}</span></div>
+          <span class="sw ${P[key] ? 'on' : ''}"></span></div>`;
+      const seg = (key, title, opts) => `<div class="setrow col"><div class="grow"><b>${title}</b></div>
+          <div class="mini-seg">${opts.map(([v, t]) => `<button class="${P[key] === v ? 'on' : ''}" data-action="setpref" data-k="${key}" data-v="${v}">${t}</button>`).join('')}</div></div>`;
+      body = `<div class="body stg">
+        <section class="card snow">
+          <div class="lab"><span>${ico('gift')}Праздничное оформление</span></div>
+          ${sw('snow', 'create', 'Снегопад', 'Падающий снег поверх обоев', '#8fd3ff')}
+          ${sw('garland', 'star', 'Гирлянды', 'Огоньки и хвоя наверху экрана', '#3ddc97')}
+          ${sw('cat', 'smile', 'Кот-талисман', 'Следит за пальцем и мяукает', '#ffb35f')}
+          ${sw('sound', 'sound', 'Звук «мяу»', 'Тап по коту со звуком', '#ffd166')}
+          ${sw('haptics', 'bolt', 'Вибро-отклик', 'Лёгкая вибрация на нажатиях', '#ff7a85')}
+        </section>
+        <section class="card">
+          <div class="lab"><span>${ico('sliders')}Тонкая настройка</span></div>
+          ${seg('lights', 'Огни гирлянды', [['twinkle', 'Мерцание'], ['steady', 'Ровно'], ['chase', 'Бегущие'], ['wave', 'Волна']])}
+          ${seg('density', 'Густота снега', [['low', 'Мало'], ['normal', 'Норма'], ['high', 'Много']])}
+        </section>
+        <button class="btn primary block" data-action="pet">${ico('heart')}Погладить кота</button></div>`;
     } else {
       body = `<div class="body stg">
         <section class="card">${wm()}
@@ -851,10 +1095,10 @@
   /* ======================= ОБУЧЕНИЕ (ПРЕЗЕНТАЦИЯ) ======================= */
   function introSlides() {
     const k = cfg();
-    const em = ['✨', '🔥', '💎', '🎉', '💖', '🚀', '🌈', '⚡', '🎧'];
+    const em = ['🎄', '⭐', '🎁', '❄️', '🔔', '🐱', '✨', '💎', '🎅'];
     const tiles = em.map((e, i) => `<i style="--k:${i}">${e}<img src="/api/preview/${i + 1}.png" alt=""></i>`).join('');
-    const orbit1 = ['🔥', '💖', '🎉', '⚡', '🚀'].map((e, i) => `<i style="--ang:${i * 72}deg">${e}</i>`).join('');
-    const orbit2 = ['✨', '🌈', '💎'].map((e, i) => `<i style="--ang:${i * 120 + 30}deg">${e}</i>`).join('');
+    const orbit1 = ['🎄', '🎁', '❄️', '🔔', '⭐'].map((e, i) => `<i style="--ang:${i * 72}deg">${e}</i>`).join('');
+    const orbit2 = ['✨', '🐱', '💎'].map((e, i) => `<i style="--ang:${i * 120 + 30}deg">${e}</i>`).join('');
     return [
       { kick: 'Встречай', head: 'Эмодзи,<br><em>которых ещё</em><br>не было.', sub: 'Анимированные кастом-эмодзи с твоей надписью — всего за пару касаний.',
         vis: `<div class="orbit"><div class="ring">${orbit1}</div><div class="ring r2">${orbit2}</div><div class="core">${lg('logo')}</div></div>` },
@@ -1043,6 +1287,51 @@
         break;
       }
       case 'open': openTemplate(Number(d.n)); break;
+      case 'tnav': haptic(); openTemplate(Number(d.n), true); break;
+      case 'randtpl': {
+        const pool = filteredShop().length ? filteredShop() : S.shop;
+        if (pool.length) { haptic('medium'); F.react('say', 'Лови случайный!'); openTemplate(pool[(Math.random() * pool.length) | 0].n); }
+        break;
+      }
+      case 'fav': {
+        const on = toggleFav(Number(d.n));
+        haptic('medium');
+        if (on) F.hearts(5);
+        toast(on ? 'Добавлено в избранное' : 'Убрано из избранного');
+        openTemplate(Number(d.n), true);
+        if (S.tab === 'shop') fillGrid();
+        break;
+      }
+      case 'bauble': S.bauble = d.c; F.store.set('es_bauble', d.c); haptic(); {
+        const b = $('#bauble'); if (b) b.className = 'bauble c-' + d.c;
+        document.querySelectorAll('.bauble-dots button').forEach((x) => x.classList.toggle('on', x.dataset.c === d.c));
+      } break;
+      case 'repeat': {
+        const l = F.store.get('es_last', null);
+        if (!l) break;
+        const k = cfg();
+        c.text = (l.text || '').slice(0, k.text_max);
+        if (k.fonts.some((f) => f.id === l.font)) c.font = l.font;
+        if (k.kinds[l.kind]) c.kind = l.kind;
+        c.mode = l.mode === 'manual' && l.sel && l.sel.length ? 'manual' : 'random';
+        if (c.mode === 'manual') S.sel = new Set(l.sel.slice(0, orderLimit()));
+        else c.count = Math.max(1, Math.min(Math.min(orderLimit(), k.templates_builtin), l.count || 5));
+        haptic('medium'); F.react('say', 'Повторим! 🐾');
+        c.step = STEPS.length - 1; saveDraft(); render(1);
+        break;
+      }
+      case 'setpref': F.set(d.k, d.v); haptic(); document.querySelectorAll(`[data-action=setpref][data-k=${d.k}]`).forEach((b) => b.classList.toggle('on', b.dataset.v === d.v)); break;
+      case 'togglepref': {
+        const on = F.toggle(d.k);
+        el.querySelector('.sw').classList.toggle('on', on);
+        el.setAttribute('aria-checked', on ? 'true' : 'false');
+        haptic();
+        if (d.k === 'sound' && on) F.meowSound && F.meowSound();
+        break;
+      }
+      case 'pet': F.react('ok', 'Мррр… ещё! 💖'); haptic('medium'); break;
+      case 'seasonopen': haptic(); S.sec.profile = 'season'; if (S.tab === 'profile') render(0, false); else setTab('profile'); break;
+      case 'seasonclaim': claimSeason(); break;
       case 'toggle': {
         const n = Number(d.n);
         if (toggleSel(n) !== false) { closeSheet(); if (S.tab === 'shop') refreshTileSel(); toast(S.sel.has(n) ? 'Добавлено в набор' : 'Убрано'); }
@@ -1059,6 +1348,10 @@
       case 'introclose': closeIntro(); break;
       case 'intronext': nextIntro(); break;
     }
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if ((e.key === 'Enter' || e.key === ' ') && e.target.getAttribute && e.target.getAttribute('role') === 'switch') { e.preventDefault(); e.target.click(); }
   });
 
   window.addEventListener('resize', () => { if (S.tab === 'shop') fillGrid(); if (S.tab === 'profile' && S.sec.profile === 'packs') drawPacks(); });
@@ -1079,6 +1372,11 @@
       return;
     }
     render();
+    /* сезон подгружаем в фоне: баннер на главной появится, когда данные придут */
+    loadSeason().then(() => {
+      const typing = document.activeElement && document.activeElement.tagName === 'INPUT';
+      if (S.tab === 'create' && S.create.step === 0 && !typing && S.season && S.season.active) rr();
+    }).catch(() => {});
     try { if (!localStorage.getItem('seenIntro') && !S.me.maintenance && !(S.me.gate && S.me.gate.length)) setTimeout(openIntro, 700); } catch (e) {}
   })();
 })();

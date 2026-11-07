@@ -201,6 +201,9 @@ async def add_emoji_counter(user_id: int, count: int, stars: int) -> None:
             (count, stars, user_id),
         )
         await conn.commit()
+    # Сезоны: оплаченный и выданный заказ — это тоже активность.
+    import seasons
+    await seasons.on_action(user_id, seasons.order_points(count))
 
 
 # --------------------------------------------------------------------------
@@ -842,6 +845,8 @@ async def reward_referral(invited_id: int) -> Optional[Dict[str, Any]]:
     bonus = referral_bonus(friends)
     gained = config.REFERRAL_REWARD + bonus
     total = await add_crystals(inviter, gained)
+    import seasons
+    await seasons.on_action(inviter, seasons.POINTS_REFERRAL)
     return {"inviter": inviter, "friends": friends, "gained": gained, "bonus": bonus, "crystals": total}
 
 

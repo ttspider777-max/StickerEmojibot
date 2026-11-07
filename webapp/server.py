@@ -31,6 +31,7 @@ import config
 import crypto
 import db
 import notify
+import seasons
 import settings
 import tgs_engine as engine
 
@@ -223,7 +224,7 @@ async def api_me(request: web.Request) -> web.Response:
             "min_topup": config.MIN_TOPUP,
             "max_topup": config.MAX_TOPUP,
             "crypto": crypto.enabled(),
-            "fonts": [{"id": fid, "label": label} for fid, (label, _f) in config.FONTS.items()],
+            "fonts": [{"id": fid, "label": label, "file": _f} for fid, (label, _f) in config.FONTS.items()],
             "default_font": config.DEFAULT_FONT,
             "templates_total": len(await _all_numbers()),
             "templates_builtin": len(engine.available_templates()),
@@ -231,6 +232,24 @@ async def api_me(request: web.Request) -> web.Response:
             "kinds": {k: {"title": v["title"], "note": v["note"]} for k, v in config.KINDS.items()},
         },
     )
+
+
+async def api_season(request: web.Request) -> web.Response:
+    """Экран «Сезон»: статус, моё место, топ, призы и правила."""
+    data = await seasons.snapshot(request["uid"], has_channels=bool(settings.channels()))
+    return _ok(**data)
+
+
+async def api_season_claim(request: web.Request) -> web.Response:
+    """Разовый бонус сезона за подписку на обязательные каналы."""
+    uid = request["uid"]
+    if not settings.channels():
+        return _err("Каналы для бонуса не настроены")
+    missing = await request.app["hooks"]["missing_channels"](uid)
+    result = await seasons.claim_subscription(uid, subscribed=not missing)
+    if not result["ok"]:
+        return _err(result["error"])
+    return _ok(points=result["points"])
 
 
 async def api_packs(request: web.Request) -> web.Response:
@@ -677,7 +696,11 @@ def build_app(bot: Bot, bot_username: str, hooks: Dict[str, Hook]) -> web.Applic
     app.router.add_post("/api/topup", api_topup)
     app.router.add_post("/api/promo", api_promo)
     app.router.add_post("/api/premium", api_premium)
+    app.router.add_get("/api/season", api_season)
+    app.router.add_post("/api/season/claim", api_season_claim)
     app.router.add_static("/static/", STATIC_DIR, show_index=False)
+    # шрифты шаблонов — для живого предпросмотра надписи в мини-приложении
+    app.router.add_static("/fonts/", config.FONTS_DIR, show_index=False)
     return app
 
 

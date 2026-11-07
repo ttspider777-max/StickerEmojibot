@@ -139,7 +139,10 @@ def _home_markup() -> InlineKeyboardMarkup:
             InlineKeyboardButton(text="🎟 Промокоды", callback_data="adm:promo"),
             InlineKeyboardButton(text="🧩 Шаблоны юзеров", callback_data="adm:utpl:0"),
         ],
-        [InlineKeyboardButton(text="📣 Обязательная подписка", callback_data="adm:channels")],
+        [
+            InlineKeyboardButton(text="🏆 Сезоны", callback_data="adm:seasons"),
+            InlineKeyboardButton(text="📣 Обязательная подписка", callback_data="adm:channels"),
+        ],
     ])
 
 
